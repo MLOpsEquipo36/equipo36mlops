@@ -16,11 +16,32 @@
 - Comandos para cada etapa del proyecto
 - Solución de problemas comunes
 
-#### **setup_dvc.sh**
-- Script automático de configuración inicial
+#### **GUIA_SETUP_DVC.md** ⭐ NUEVO
+- Guía detallada del script `setup_dvc.sh`
+- Modos de uso: interactivo y directo
+- Casos de uso comunes con ejemplos
+- FAQ y solución de problemas
+
+#### **EJEMPLO_USO_DVC.md** ⭐ NUEVO
+- Ejemplo práctico con tus datasets actuales
+- Plan de versionado paso a paso
+- Comandos copy-paste listos para usar
+- Estrategias para mantener repositorio limpio
+
+#### **setup_dvc.sh** (MEJORADO ⭐)
+- ✅ Modo interactivo: muestra todos los CSV disponibles
+- ✅ Modo directo: `bash setup_dvc.sh <archivo>`
+- ✅ Versiona archivos en cualquier ubicación (raw/, processed/, etc.)
+- ✅ Configuración flexible de remote
+- ✅ Tags personalizables
 - Configura remote (local o Google Drive)
-- Prepara dataset inicial
-- Crea primera versión (data-v0.1-raw)
+- Crea versión inicial con tag
+
+#### **add_to_dvc.sh** ⭐ NUEVO
+- Script rápido para agregar archivos a DVC
+- No requiere configuración completa
+- Útil cuando DVC ya está configurado
+- Sintaxis: `bash add_to_dvc.sh <archivo> [tag] [descripción]`
 
 ---
 

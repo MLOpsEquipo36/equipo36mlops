@@ -1,10 +1,28 @@
 # 🚀 Quick Start: Configuración de DVC
 
+## 🎯 Scripts Disponibles
+
+Este proyecto incluye scripts para facilitar el versionado con DVC:
+
+| Script | Propósito | Cuándo Usar |
+|--------|-----------|-------------|
+| `setup_dvc.sh` | Setup completo + versionar primer archivo | Primera vez configurando DVC |
+| `add_to_dvc.sh` | Agregar/actualizar archivo rápidamente | Ya tienes DVC configurado |
+
+---
+
 ## Opción 1: Usar el Script Automático (Recomendado)
 
+### Modo Interactivo
 ```bash
-# Ejecutar desde la raíz del proyecto
+# El script te mostrará todos los CSV disponibles y podrás elegir
 bash setup_dvc.sh
+```
+
+### Modo Directo (con argumento)
+```bash
+# Especifica directamente qué archivo versionar
+bash setup_dvc.sh data/raw/student_entry_performance_original.csv
 ```
 
 El script te guiará paso a paso para:
