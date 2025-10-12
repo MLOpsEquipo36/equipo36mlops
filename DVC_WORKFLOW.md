@@ -233,57 +233,112 @@ dvc pull
 
 ```mermaid
 graph TD
-    A[data/raw/original.csv] -->|Copiar| B[data/processed/student_performance.csv]
-    B -->|dvc add + git tag v0.1| C[Version 0.1: Raw]
-    C -->|EDA Cleaning| D[data/processed/student_performance.csv]
-    D -->|dvc add + git tag v0.2| E[Version 0.2: Cleaned]
-    E -->|Feature Engineering| F[data/processed/student_performance_features.csv]
-    F -->|dvc add + git tag v0.3| G[Version 0.3: Features]
+    A[data/raw/student_entry_performance.csv] -->|bash setup_dvc.sh| B[DVC: v1.0-raw]
+    B -->|Notebook 1: EDA| C[data/processed/student_performance.csv]
+    C -->|bash add_to_dvc.sh| D[DVC: v1.1-cleaned]
+    D -->|Notebook 2: Features| E[data/processed/student_performance_features.csv]
+    E -->|bash add_to_dvc.sh| F[DVC: v1.2-features]
+    
+    style A fill:#e1f5ff
+    style C fill:#fff4e1
+    style E fill:#e8f5e9
 ```
+
+### Pipeline de Datos
+
+| Etapa | Archivo | Versión DVC | Script/Notebook |
+|-------|---------|-------------|-----------------|
+| **Raw** | `data/raw/student_entry_performance.csv` | v1.0-raw | `setup_dvc.sh` |
+| **Cleaned** | `data/processed/student_performance.csv` | v1.1-cleaned | `1.0-el-EDA_cleaning.ipynb` + `add_to_dvc.sh` |
+| **Features** | `data/processed/student_performance_features.csv` | v1.2-features | `Preprocesamieto de Datos.ipynb` + `add_to_dvc.sh` |
 
 ---
 
 ## ✅ Ventajas de este Flujo
 
-1. **Un solo nombre de archivo** → No más `_modified`, `_after_eda`, `_v2`, etc.
-2. **Historial completo** → Puedes volver a cualquier versión
-3. **Git + DVC integrados** → Cada versión de código tiene su versión de datos
-4. **Colaboración fácil** → Equipo sincronizado con `dvc pull`
-5. **Sin archivos grandes en Git** → Solo metadatos en `.dvc` files
+1. **Archivos donde pertenecen** → Raw en `raw/`, processed en `processed/`
+2. **Sin duplicados** → No más `_modified`, `_after_eda`, `_v2`, etc.
+3. **Historial completo** → Puedes volver a cualquier versión con Git tags
+4. **Git + DVC integrados** → Cada versión de código tiene su versión de datos
+5. **Colaboración fácil** → Equipo sincronizado con `dvc pull`
+6. **Sin archivos grandes en Git** → Solo metadatos en `.dvc` files
+7. **Scripts automatizados** → `setup_dvc.sh` y `add_to_dvc.sh` simplifican el proceso
 
 ---
 
 ## 🚨 Errores Comunes a Evitar
 
-❌ **NO hacer:** `git add data/processed/student_performance.csv`
-✅ **SÍ hacer:** `dvc add data/processed/student_performance.csv`
+❌ **NO hacer:** `git add data/raw/student_entry_performance.csv`
+✅ **SÍ hacer:** `dvc add data/raw/student_entry_performance.csv` o usar `bash setup_dvc.sh`
 
-❌ **NO hacer:** Crear archivos con nombres diferentes para cada versión
-✅ **SÍ hacer:** Sobrescribir el mismo archivo y hacer `dvc add` + `git commit`
+❌ **NO hacer:** Crear archivos con nombres diferentes para cada versión (`_v1`, `_v2`, `_final`)
+✅ **SÍ hacer:** Usar archivos significativos y versionar con tags
+
+❌ **NO hacer:** Copiar archivos manualmente entre directorios
+✅ **SÍ hacer:** Dejar raw en `raw/`, procesados en `processed/`
 
 ❌ **NO olvidar:** Hacer `dvc push` después de `dvc add`
-✅ **Recordar:** `dvc add` → `git commit` → `dvc push` → `git push`
+✅ **Recordar:** `dvc add` → `git commit` → `git tag` → `dvc push` → `git push --tags`
+
+❌ **NO hacer:** Ejecutar notebooks desde cualquier directorio
+✅ **SÍ hacer:** Ejecutar desde la raíz del proyecto para que las rutas relativas funcionen
 
 ---
 
-## 📝 Plantilla de Commits
+## 📝 Plantilla de Commits y Tags
 
 ```bash
 # Patrón recomendado
 git commit -m "feat: <descripción del cambio en los datos>"
 git tag -a "data-v<version>-<etapa>" -m "<descripción detallada>"
 
-# Ejemplos
-git commit -m "feat: remove outliers and impute missing values"
-git tag -a "data-v1.0-cleaned" -m "Version 1.0: Data cleaning completed"
+# Ejemplos del proyecto
+git commit -m "feat: add raw dataset to DVC tracking"
+git tag -a "data-v1.0-raw" -m "Version 1.0: Raw dataset from source"
 
-git commit -m "feat: add PCA features and normalize scales"
-git tag -a "data-v1.1-features" -m "Version 1.1: Feature engineering applied"
+git commit -m "feat: apply EDA cleaning - normalize text, handle nulls"
+git tag -a "data-v1.1-cleaned" -m "Version 1.1: Data after EDA cleaning"
+
+git commit -m "feat: add engineered features with PCA and encoding"
+git tag -a "data-v1.2-features" -m "Version 1.2: Features ready for modeling"
 ```
+
+---
+
+## 🛠️ Scripts Disponibles
+
+### `setup_dvc.sh` - Primera configuración
+
+```bash
+# Modo interactivo (te muestra opciones)
+bash setup_dvc.sh
+
+# Modo directo (especificas archivo)
+bash setup_dvc.sh data/raw/student_entry_performance.csv
+```
+
+**Cuándo usar:** Primera vez versionando un archivo
+
+### `add_to_dvc.sh` - Agregar archivos rápidamente
+
+```bash
+# Básico
+bash add_to_dvc.sh data/processed/archivo.csv
+
+# Con tag y descripción
+bash add_to_dvc.sh data/processed/archivo.csv data-v1.1 "Descripción"
+```
+
+**Cuándo usar:** DVC ya configurado, solo quieres versionar un archivo
 
 ---
 
 ## 🎓 Siguiente Paso
 
-Ahora que entiendes el flujo, ejecuta los comandos del **Paso 1 y 2** para consolidar tu dataset actual en una versión inicial versionada con DVC.
+Ahora que entiendes el flujo:
+
+1. Configura el remote (Paso 1)
+2. Ejecuta `bash setup_dvc.sh data/raw/student_entry_performance.csv` (Paso 2)
+3. Ejecuta los notebooks en orden (Pasos 3 y 4)
+4. Versiona cada resultado con `add_to_dvc.sh`
 

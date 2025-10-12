@@ -26,14 +26,13 @@ bash setup_dvc.sh
 ```
 Archivos CSV disponibles en el proyecto:
 
-  1) data/raw/student_entry_performance_original.csv  (52K)
-  2) data/raw/student_entry_performance_modified.csv  (56K)
-  3) data/processed/student_entry_performance_modified.csv  (55K)
-  4) data/processed/student_entry_performance_modified_after_eda.csv  (53K)
+  1) data/raw/student_entry_performance.csv  (52K)
+  2) data/processed/student_performance.csv  (53K)
+  3) data/processed/student_performance_features.csv  (45K)
 
   0) Ingresar ruta manualmente
 
-Selecciona el archivo a versionar [1-4] o 0: _
+Selecciona el archivo a versionar [1-3] o 0: _
 ```
 
 ---
@@ -48,9 +47,9 @@ bash setup_dvc.sh <ruta_del_archivo>
 
 **Ejemplos:**
 
-#### Versionar archivo en `raw/`:
+#### Versionar archivo en `raw/` (tu caso):
 ```bash
-bash setup_dvc.sh data/raw/student_entry_performance_original.csv
+bash setup_dvc.sh data/raw/student_entry_performance.csv
 ```
 
 #### Versionar archivo en `processed/`:
@@ -61,86 +60,149 @@ bash setup_dvc.sh data/processed/student_performance.csv
 #### Versionar cualquier CSV:
 ```bash
 bash setup_dvc.sh data/interim/mi_dataset_intermedio.csv
+bash setup_dvc.sh models/predictions.csv
 ```
 
 ---
 
 ## 📋 Casos de Uso Comunes
 
-### Caso 1: Versionar Dataset Original (Primera Vez)
+### Caso 1: Versionar tu Dataset Original en raw/ (TU CASO ⭐)
+
+Este es tu caso específico: tienes `student_entry_performance.csv` en `data/raw/`
 
 ```bash
-# Versionar el dataset original que está en raw/
-bash setup_dvc.sh data/raw/student_entry_performance_original.csv
+# Versionar el dataset original
+bash setup_dvc.sh data/raw/student_entry_performance.csv
 ```
 
-**¿Qué hace?**
-- ✅ Agrega el archivo a DVC (crea `.dvc` file)
-- ✅ Actualiza `.gitignore` en `data/raw/`
-- ✅ Hace commit a Git
-- ✅ Crea tag (ej: `data-v0.1-raw`)
+**¿Qué hace el script?**
+- ✅ Agrega el archivo a DVC (crea `student_entry_performance.csv.dvc`)
+- ✅ Actualiza `.gitignore` en `data/raw/` (para que Git ignore el CSV)
+- ✅ Hace commit a Git del archivo `.dvc`
+- ✅ Te pregunta si quieres crear un tag → Responde: `data-v1.0-raw`
+- ✅ Configura remote si es primera vez
+
+**Resultado:** Tu archivo está versionado y listo para ser procesado por los notebooks.
 
 ---
 
-### Caso 2: Versionar Dataset Modificado
+### Caso 2: Versionar Dataset Procesado (Después de EDA)
+
+Después de ejecutar `1.0-el-EDA_cleaning.ipynb`:
 
 ```bash
-# Si ya tienes un dataset modificado que quieres versionar
-bash setup_dvc.sh data/raw/student_entry_performance_modified.csv
+# Versionar el dataset limpio generado por el notebook
+bash add_to_dvc.sh data/processed/student_performance.csv data-v1.1-cleaned "After EDA cleaning"
 ```
+
+**Resultado:** Dataset limpio versionado y listo para el siguiente paso.
 
 ---
 
-### Caso 3: Versionar Dataset Procesado
+### Caso 3: Versionar Features (Después de Preprocessing)
+
+Después de ejecutar `Preprocesamieto de Datos.ipynb`:
 
 ```bash
-# Después de procesar datos en un notebook
-bash setup_dvc.sh data/processed/student_performance_cleaned.csv
+# Versionar las features generadas
+bash add_to_dvc.sh data/processed/student_performance_features.csv data-v1.2-features "Features with PCA"
 ```
+
+**Resultado:** Features listas para entrenar modelos.
 
 ---
 
-### Caso 4: Versionar Múltiples Datasets
+### Caso 4: Versionar Múltiples Archivos (Pipeline Completo)
 
-Ejecuta el script múltiples veces, una por cada archivo:
-
-```bash
-# Primero el original
-bash setup_dvc.sh data/raw/student_entry_performance_original.csv
-
-# Luego el modificado
-bash setup_dvc.sh data/raw/student_entry_performance_modified.csv
-
-# Y el procesado
-bash setup_dvc.sh data/processed/student_performance_features.csv
-```
-
----
-
-## 🎨 Flujo Completo Ejemplo
-
-### Escenario: Proyecto desde cero
+Ejecuta el pipeline completo:
 
 ```bash
-# 1. Versionar dataset original en raw/
-bash setup_dvc.sh data/raw/student_entry_performance_original.csv
-# Tag sugerido: data-v1.0-original
+# 1. Versionar el original
+bash setup_dvc.sh data/raw/student_entry_performance.csv
+# Tag: data-v1.0-raw
 
-# 2. Configurar remote (primera vez solamente)
-# El script te preguntará: elige "1" para local o "2" para Google Drive
+# 2. Ejecutar notebook de EDA
+jupyter notebook notebooks/1.0-el-EDA_cleaning.ipynb
 
-# 3. Subir al remote
+# 3. Versionar resultado de EDA
+bash add_to_dvc.sh data/processed/student_performance.csv data-v1.1-cleaned "After EDA"
+
+# 4. Ejecutar notebook de preprocessing
+jupyter notebook notebooks/Preprocesamieto\ de\ Datos.ipynb
+
+# 5. Versionar features
+bash add_to_dvc.sh data/processed/student_performance_features.csv data-v1.2-features "With PCA"
+
+# 6. Subir todo
 dvc push
+git push --tags
+```
 
-# 4. Hacer cambios al dataset (ejecutar notebooks, scripts, etc.)
-# ... tu código transforma los datos ...
+**Resultado:** Pipeline completo versionado con 3 versiones de datos.
 
-# 5. Versionar el dataset transformado
-bash setup_dvc.sh data/processed/student_performance_cleaned.csv
-# Tag sugerido: data-v2.0-cleaned
+---
 
-# 6. Subir nueva versión
+## 🎨 Flujo Completo: Tu Proyecto
+
+### Pipeline completo del proyecto equipo36mlops
+
+```bash
+# ============================================================================
+# PASO 0: Configurar remote (una sola vez)
+# ============================================================================
+mkdir -p ~/dvc-storage/equipo36mlops
+dvc remote add -d local ~/dvc-storage/equipo36mlops
+git add .dvc/config
+git commit -m "chore: configure DVC local remote"
+
+# ============================================================================
+# PASO 1: Versionar dataset original (v1.0-raw)
+# ============================================================================
+bash setup_dvc.sh data/raw/student_entry_performance.csv
+
+# Durante el script:
+# - Remote: opción 3 (skip - ya lo configuraste)
+# - Tag: data-v1.0-raw
+# - Descripción: Raw dataset from source
+
 dvc push
+git push --tags
+
+# ============================================================================
+# PASO 2: Ejecutar EDA y versionar resultado (v1.1-cleaned)
+# ============================================================================
+
+# Ejecutar notebook de EDA
+jupyter notebook notebooks/1.0-el-EDA_cleaning.ipynb
+
+# Versionar el resultado
+bash add_to_dvc.sh data/processed/student_performance.csv data-v1.1-cleaned "After EDA cleaning"
+
+dvc push
+git push --tags
+
+# ============================================================================
+# PASO 3: Ejecutar preprocessing y versionar features (v1.2-features)
+# ============================================================================
+
+# Ejecutar notebook de preprocessing
+jupyter notebook notebooks/Preprocesamieto\ de\ Datos.ipynb
+
+# Versionar las features
+bash add_to_dvc.sh data/processed/student_performance_features.csv data-v1.2-features "Features with PCA"
+
+dvc push
+git push --tags
+
+# ============================================================================
+# ✅ COMPLETADO - Tienes 3 versiones de datos versionadas
+# ============================================================================
+git tag -l "data-*"
+# Salida esperada:
+# data-v1.0-raw
+# data-v1.1-cleaned
+# data-v1.2-features
 ```
 
 ---
@@ -183,12 +245,15 @@ Si ya tienes remote configurado o prefieres configurarlo manualmente después.
 ```bash
 # Formato: data-v[VERSION]-[DESCRIPCION]
 
-data-v1.0-original     # Dataset original sin modificar
-data-v1.1-cleaned      # Limpieza: nulls, duplicados
-data-v1.2-normalized   # Normalización de texto
-data-v2.0-encoded      # Feature engineering aplicado
-data-v2.1-pca          # PCA aplicado
-data-v3.0-final        # Dataset listo para modelado
+# Tags del proyecto equipo36mlops
+data-v1.0-raw          # Dataset original en data/raw/
+data-v1.1-cleaned      # Limpieza EDA aplicada
+data-v1.2-features     # Features con PCA listas para ML
+
+# Otros ejemplos útiles
+data-v1.3-balanced     # Dataset balanceado
+data-v1.4-augmented    # Data augmentation aplicada
+data-v2.0-retrained    # Con nuevos datos
 ```
 
 ---
@@ -224,13 +289,31 @@ dvc checkout
 
 ### Sincronizar con equipo
 ```bash
-# Descargar últimas versiones
-git pull
+# Tu compañero clona el repo
+git clone <url-del-repo>
+cd equipo36mlops
+
+# Descarga los datos
 dvc pull
 
-# Subir cambios
+# Ya tiene todos los datos en las versiones correctas
+
+# Para subir cambios (tú)
 dvc push
 git push --tags
+```
+
+### Ver el pipeline completo
+```bash
+# Ver todas las versiones
+git tag -l "data-*"
+
+# Ver archivos versionados con DVC
+find . -name "*.dvc"
+
+# Ver archivos rastreados
+dvc list . data/raw
+dvc list . data/processed
 ```
 
 ---
@@ -305,10 +388,51 @@ find data -name "*.csv"
 
 ---
 
+## 🎯 Ejemplo Real con tu Archivo
+
+Tu archivo actual: `data/raw/student_entry_performance.csv`
+
+```bash
+# 1. Primera vez - Versionar el archivo original
+bash setup_dvc.sh data/raw/student_entry_performance.csv
+
+# El script te pregunta:
+# Remote: 1 (local)
+# Tag: data-v1.0-raw
+# Descripción: Raw dataset from source
+
+# 2. Subir
+dvc push
+git push --tags
+
+# 3. Ejecutar notebook EDA
+jupyter notebook notebooks/1.0-el-EDA_cleaning.ipynb
+
+# 4. Versionar resultado
+bash add_to_dvc.sh data/processed/student_performance.csv data-v1.1-cleaned "Clean"
+
+# 5. Ejecutar notebook preprocessing
+jupyter notebook notebooks/Preprocesamieto\ de\ Datos.ipynb
+
+# 6. Versionar features
+bash add_to_dvc.sh data/processed/student_performance_features.csv data-v1.2-features "Features"
+
+# 7. Subir todo
+dvc push
+git push --tags
+```
+
+**Resultado final:**
+- 3 versiones versionadas
+- Pipeline reproducible
+- Equipo puede sincronizar con `dvc pull`
+
+---
+
 ## 📚 Referencias
 
-- `DVC_WORKFLOW.md` - Flujo completo de trabajo
-- `QUICKSTART_DVC.md` - Guía rápida
-- `CAMBIOS_DVC.md` - Cambios realizados al proyecto
+- `DVC_WORKFLOW.md` - Flujo completo de trabajo actualizado
+- `RESUMEN_FINAL.md` - Tu guía específica
+- `add_to_dvc.sh` - Script para agregar archivos
 - [Documentación oficial DVC](https://dvc.org/doc)
 
