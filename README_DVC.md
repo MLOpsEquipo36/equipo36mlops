@@ -1,30 +1,65 @@
 # 📦 Sistema de Versionado DVC - Equipo 36 MLOps
 
-## 🎯 Archivo a Versionar
+## ⚠️ IMPORTANTE: Tus Archivos NO se Mueven
+
+**DVC versiona archivos DONDE ESTÁN.** Tu carpeta `data/` ya está perfecta:
 
 ```
-data/raw/student_entry_performance.csv
+data/
+├── raw/
+│   └── student_entry_performance.csv  ← Se queda aquí ✅
+├── processed/  ← Resultados aquí ✅
+├── interim/    ← Archivos temporales aquí ✅
+└── external/   ← Datos externos aquí ✅
+```
+
+**DVC solo agrega:**
+- Archivos `.dvc` (metadatos pequeños)
+- Cache en `.dvc/cache/` (historial)
+- Opcionalmente remote externo (respaldo)
+
+**Lee `FAQ_DVC.md` si tienes dudas** ←
+
+---
+
+## 🎯 Tu Archivo a Versionar
+
+```
+data/raw/student_entry_performance.csv  ← Versionar este
 ```
 
 ---
 
-## ⚡ Inicio Ultra-Rápido (5 minutos)
+## ⚡ Inicio Ultra-Rápido (2 minutos)
+
+### Opción Simple (Sin Remote) ⭐ Recomendado
 
 ```bash
-# 1. Configurar remote
+# 1. Versionar el archivo original
+bash setup_dvc.sh data/raw/student_entry_performance.csv
+
+# Cuando pregunte:
+# - Remote: opción 3 (skip) ← No necesitas remote para empezar
+# - Tag: data-v1.0-raw
+
+# 2. Subir a Git
+git push --tags
+
+# 3. Ejecutar primer notebook  
+jupyter notebook notebooks/1.0-el-EDA_cleaning.ipynb
+```
+
+### Opción con Respaldo (Con Remote) - OPCIONAL
+
+```bash
+# Solo si quieres respaldo adicional o trabajas en equipo:
 mkdir -p ~/dvc-storage/equipo36mlops
 dvc remote add -d local ~/dvc-storage/equipo36mlops
 
-# 2. Versionar el archivo original
+# Luego versiona y haz push
 bash setup_dvc.sh data/raw/student_entry_performance.csv
-# Tag: data-v1.0-raw
-
-# 3. Subir
-dvc push
+dvc push  # Respalda en remote
 git push --tags
-
-# 4. Ejecutar primer notebook
-jupyter notebook notebooks/1.0-el-EDA_cleaning.ipynb
 ```
 
 ---
@@ -66,12 +101,14 @@ bash add_to_dvc.sh data/processed/student_performance.csv data-v1.1-cleaned "Aft
 ## 📚 Documentación (por nivel)
 
 ### 🟢 Principiante (Empieza aquí)
-1. **`DVC_QUICKSTART.md`** (2 min) - 5 pasos simples
-2. **`RESUMEN_FINAL.md`** (5 min) - Tu guía específica
+1. **`FAQ_DVC.md`** ⭐ (5 min) - Aclara dudas comunes
+2. **`DVC_QUICKSTART.md`** (2 min) - 5 pasos simples
+3. **`SETUP_SIMPLE.md`** (5 min) - Versión sin remote
+4. **`RESUMEN_FINAL.md`** (5 min) - Tu guía específica
 
 ### 🟡 Intermedio
-3. **`DVC_WORKFLOW.md`** (15 min) - Flujo completo actualizado
-4. **`GUIA_SETUP_DVC.md`** (20 min) - Guía detallada de scripts
+5. **`DVC_WORKFLOW.md`** (15 min) - Flujo completo actualizado
+6. **`GUIA_SETUP_DVC.md`** (20 min) - Guía detallada de scripts
 
 ---
 
