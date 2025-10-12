@@ -1,24 +1,25 @@
 # 📦 Flujo de Versionado de Datos con DVC
 
 ## 🎯 Objetivo
-Versionar correctamente el dataset usando DVC para mantener un historial de cambios sin duplicar archivos con nombres diferentes.
+Versionar correctamente los datasets usando DVC para mantener un historial de cambios sin duplicar archivos con nombres diferentes.
 
-## 📁 Estructura Propuesta
+## 📁 Estructura del Proyecto
 
 ```
 data/
 ├── raw/
-│   └── student_entry_performance_original.csv    # Datos originales (sin tocar)
+│   └── student_entry_performance.csv          # Dataset original [DVC: v1.0-raw]
 └── processed/
-    └── student_performance.csv                    # Archivo versionado con DVC
+    ├── student_performance.csv                 # Dataset limpio [DVC: v1.1-cleaned]
+    └── student_performance_features.csv        # Features para ML [DVC: v1.2-features]
 ```
 
 ## 🔄 Flujo de Trabajo con DVC
 
 ### **Concepto Clave**
-En lugar de tener múltiples archivos (`modified.csv`, `modified_after_eda.csv`, etc.), tenemos **UN SOLO ARCHIVO** cuyas versiones se gestionan con DVC mediante commits de Git.
+En lugar de tener múltiples archivos con nombres diferentes (`modified.csv`, `modified_after_eda.csv`, etc.), versionamos archivos donde están y usamos Git tags para identificar cada versión del pipeline de datos.
 
-### **Paso 1: Configuración Inicial** ✅ (Ya completado)
+### **Paso 1: Configuración Inicial del Remote**
 
 Tu DVC ya está inicializado en `.dvc/`. Ahora necesitas configurar un remote storage.
 
@@ -30,92 +31,153 @@ mkdir -p ~/dvc-storage/equipo36mlops
 # Configurar remote local
 dvc remote add -d local ~/dvc-storage/equipo36mlops
 
+# Commitear la configuración
+git add .dvc/config
+git commit -m "chore: configure DVC local remote"
+
 # Verificar configuración
 dvc remote list
 ```
 
 #### Opción B: Remote en Google Drive (Recomendado para equipo)
 ```bash
-# Configurar Google Drive como remote
-dvc remote add -d gdrive gdrive://1YourFolderIDHere
+# 1. Crear carpeta en Google Drive
+# 2. Copiar el ID de la URL: drive.google.com/drive/folders/ESTE_ES_EL_ID
 
-# Autenticar
+# Configurar Google Drive como remote
+dvc remote add -d gdrive gdrive://TU_FOLDER_ID_AQUI
+
+# Configurar opciones
 dvc remote modify gdrive gdrive_acknowledge_abuse true
+
+# Commitear
+git add .dvc/config
+git commit -m "chore: configure DVC Google Drive remote"
 ```
 
 #### Opción C: Remote en S3/Azure/GCS (Producción)
 ```bash
 # Ejemplo con S3
 dvc remote add -d s3remote s3://mybucket/dvcstore
+
+# Commitear
+git add .dvc/config
+git commit -m "chore: configure DVC remote"
 ```
 
 ---
 
-### **Paso 2: Preparar el Dataset Inicial**
+### **Paso 2: Versionar el Dataset Original**
 
+Usamos el script `setup_dvc.sh` para versionar el archivo fuente.
+
+#### Opción A: Modo Interactivo (Recomendado)
 ```bash
-# Copiar el dataset original como base
-cp data/raw/student_entry_performance_original.csv data/processed/student_performance.csv
+bash setup_dvc.sh
+# El script te mostrará todos los CSV y podrás seleccionar
+# Selecciona: data/raw/student_entry_performance.csv
+# Remote: opción 3 (skip - ya lo configuraste)
+# Tag: data-v1.0-raw
+# Descripción: Raw dataset from source
+```
 
-# Agregar el archivo a DVC (esto crea student_performance.csv.dvc)
-dvc add data/processed/student_performance.csv
+#### Opción B: Modo Directo
+```bash
+# Especificar directamente el archivo
+bash setup_dvc.sh data/raw/student_entry_performance.csv
+
+# Durante el script:
+# - Remote: opción 3 (skip - ya configurado)
+# - Tag: data-v1.0-raw
+# - Descripción: Raw dataset from source
+```
+
+#### O Manualmente:
+```bash
+# Agregar el archivo a DVC
+dvc add data/raw/student_entry_performance.csv
 
 # Commitear el archivo .dvc a Git
-git add data/processed/student_performance.csv.dvc data/processed/.gitignore
-git commit -m "feat: add initial raw dataset version to DVC"
-git tag -a "data-v0.1-raw" -m "Version 0.1: Raw data"
+git add data/raw/student_entry_performance.csv.dvc data/raw/.gitignore
+git commit -m "feat: add raw dataset to DVC tracking"
+git tag -a "data-v1.0-raw" -m "Version 1.0: Raw dataset from source"
 
 # Subir los datos al remote de DVC
 dvc push
+git push --tags
 ```
 
-**✨ Resultado:** Versión 0.1 del dataset (datos raw) está guardada y versionada.
+**✨ Resultado:** Archivo original versionado como `data-v1.0-raw`
 
 ---
 
-### **Paso 3: Aplicar EDA y Guardar Nueva Versión**
+### **Paso 3: Ejecutar Notebook de EDA y Versionar Resultado**
 
-Ahora ejecutas tu notebook de EDA que:
-1. Lee `data/processed/student_performance.csv`
-2. Aplica limpieza y transformaciones
-3. **SOBRESCRIBE** el mismo archivo: `data/processed/student_performance.csv`
+Ejecuta el notebook `1.0-el-EDA_cleaning.ipynb` que:
+1. Lee `data/raw/student_entry_performance.csv` (versión raw)
+2. Aplica limpieza: mayúsculas, trim, manejo de nulls, eliminación de columnas
+3. Guarda resultado en `data/processed/student_performance.csv`
 
 ```bash
-# Después de ejecutar el notebook de EDA, actualizar DVC
+# 1. Ejecutar el notebook
+jupyter notebook notebooks/1.0-el-EDA_cleaning.ipynb
+
+# 2. Después de ejecutar, versionar el resultado
+```
+
+#### Opción A: Usar el script rápido (Recomendado)
+```bash
+bash add_to_dvc.sh data/processed/student_performance.csv data-v1.1-cleaned "After EDA cleaning"
+dvc push
+git push --tags
+```
+
+#### Opción B: Comandos manuales
+```bash
 dvc add data/processed/student_performance.csv
-
-# Commitear la nueva versión
-git add data/processed/student_performance.csv.dvc
-git commit -m "feat: apply EDA cleaning - remove nulls, normalize text"
-git tag -a "data-v0.2-cleaned" -m "Version 0.2: Data after EDA cleaning"
-
-# Subir la nueva versión
+git add data/processed/student_performance.csv.dvc data/processed/.gitignore
+git commit -m "feat: apply EDA cleaning - normalize text, handle nulls"
+git tag -a "data-v1.1-cleaned" -m "Version 1.1: Data after EDA cleaning"
 dvc push
+git push --tags
 ```
 
-**✨ Resultado:** Versión 0.2 (después de EDA) está guardada. Puedes volver a v0.1 cuando quieras.
+**✨ Resultado:** Dataset limpio versionado como `data-v1.1-cleaned`
 
 ---
 
-### **Paso 4: Aplicar Preprocessing y Guardar Nueva Versión**
+### **Paso 4: Ejecutar Notebook de Preprocessing y Versionar Features**
 
-Tu segundo notebook:
+Ejecuta el notebook `Preprocesamieto de Datos.ipynb` que:
 1. Lee `data/processed/student_performance.csv` (versión limpia)
-2. Aplica encoding, PCA, etc.
-3. Guarda el resultado en un archivo diferente: `data/processed/student_performance_features.csv`
+2. Aplica Chi-cuadrada, Spearman, One-Hot Encoding, PCA
+3. Guarda features en `data/processed/student_performance_features.csv`
 
 ```bash
-# Agregar el nuevo archivo de features a DVC
-dvc add data/processed/student_performance_features.csv
+# 1. Ejecutar el notebook
+jupyter notebook notebooks/Preprocesamieto\ de\ Datos.ipynb
 
-# Commitear
-git add data/processed/student_performance_features.csv.dvc
-git commit -m "feat: add engineered features with PCA"
-git tag -a "data-v0.3-features" -m "Version 0.3: Features ready for modeling"
-
-# Subir
-dvc push
+# 2. Después de ejecutar, versionar las features
 ```
+
+#### Opción A: Usar el script rápido (Recomendado)
+```bash
+bash add_to_dvc.sh data/processed/student_performance_features.csv data-v1.2-features "Features with PCA ready for modeling"
+dvc push
+git push --tags
+```
+
+#### Opción B: Comandos manuales
+```bash
+dvc add data/processed/student_performance_features.csv
+git add data/processed/student_performance_features.dvc
+git commit -m "feat: add engineered features with PCA and encoding"
+git tag -a "data-v1.2-features" -m "Version 1.2: Features ready for modeling"
+dvc push
+git push --tags
+```
+
+**✨ Resultado:** Features listas para modelado versionadas como `data-v1.2-features`
 
 ---
 
@@ -123,23 +185,32 @@ dvc push
 
 #### Ver historial de versiones
 ```bash
+# Ver todos los tags
+git tag -l "data-*"
+
+# Ver historial completo
 git log --oneline --tags
 ```
 
 #### Volver a una versión específica
 ```bash
-# Volver a la versión raw (v0.1)
-git checkout data-v0.1-raw
+# Ejemplo: Volver a la versión raw original
+git checkout data-v1.0-raw
 
-# Descargar esa versión del dataset
-dvc pull
+# Sincronizar archivos con esa versión
+dvc checkout
 
-# El archivo data/processed/student_performance.csv ahora contiene la versión raw
+# Ver el archivo (ahora contiene la versión raw)
+head data/raw/student_entry_performance.csv
 ```
 
 #### Volver a la última versión
 ```bash
-git checkout main  # o tu rama principal
+git checkout main  # o feature/dvc
+dvc checkout
+
+# O simplemente hacer pull
+git pull
 dvc pull
 ```
 
