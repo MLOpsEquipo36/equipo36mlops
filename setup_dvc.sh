@@ -4,7 +4,10 @@
 # Script de Configuración Inicial de DVC
 # ============================================================================
 # Este script configura DVC para el proyecto equipo36mlops y prepara
-# datasets para versionado.
+# datasets para versionado. Soporta múltiples tipos de remote storage:
+# - Local (desarrollo)
+# - Google Drive (colaboración)
+# - AWS S3 (producción)
 #
 # Uso: 
 #   bash setup_dvc.sh                              # Modo interactivo
@@ -84,9 +87,10 @@ echo ""
 echo "Opciones de remote disponibles:"
 echo "  1) Local (recomendado para desarrollo)"
 echo "  2) Google Drive (recomendado para colaboración)"
-echo "  3) Skip (configurar manualmente después)"
+echo "  3) AWS S3 (recomendado para producción)"
+echo "  4) Skip (configurar manualmente después)"
 echo ""
-read -p "Selecciona una opción [1-3]: " remote_option
+read -p "Selecciona una opción [1-4]: " remote_option
 
 case $remote_option in
     1)
@@ -120,6 +124,47 @@ case $remote_option in
         fi
         ;;
     3)
+        # Remote AWS S3
+        echo ""
+        echo "Para usar AWS S3, necesitas:"
+        echo "  1. Un bucket S3 creado en AWS"
+        echo "  2. Credenciales AWS configuradas (AWS CLI o variables de entorno)"
+        echo "  3. Permisos de lectura/escritura en el bucket"
+        echo ""
+        read -p "Ingresa el nombre del bucket S3: " s3_bucket
+        
+        if [ -z "$s3_bucket" ]; then
+            echo -e "${YELLOW}⚠️  Nombre de bucket no proporcionado, saltando configuración de remote${NC}"
+        else
+            read -p "Ingresa el path dentro del bucket (opcional, presiona Enter para usar la raíz): " s3_path
+            
+            # Construir la URL de S3
+            if [ -z "$s3_path" ]; then
+                S3_URL="s3://${s3_bucket}/equipo36mlops"
+            else
+                # Eliminar slashes al inicio y final del path
+                s3_path=$(echo "$s3_path" | sed 's:^/*::' | sed 's:/*$::')
+                S3_URL="s3://${s3_bucket}/${s3_path}"
+            fi
+            
+            read -p "Ingresa la región de AWS (ej: us-east-1, us-west-2) [us-east-1]: " s3_region
+            s3_region=${s3_region:-us-east-1}
+            
+            dvc remote add -d s3remote "$S3_URL" 2>/dev/null || dvc remote modify s3remote url "$S3_URL"
+            dvc remote modify s3remote region "$s3_region"
+            
+            echo -e "${GREEN}✅ Remote AWS S3 configurado${NC}"
+            echo "   - Bucket: $s3_bucket"
+            echo "   - Path: $S3_URL"
+            echo "   - Región: $s3_region"
+            echo ""
+            echo -e "${YELLOW}💡 Asegúrate de tener tus credenciales AWS configuradas:${NC}"
+            echo "   - AWS CLI: aws configure"
+            echo "   - Variables de entorno: AWS_ACCESS_KEY_ID y AWS_SECRET_ACCESS_KEY"
+            echo "   - O credenciales de IAM role si estás en EC2/ECS"
+        fi
+        ;;
+    4)
         echo -e "${YELLOW}⚠️  Configuración de remote saltada${NC}"
         echo "Configúralo manualmente después con:"
         echo "  dvc remote add -d <nombre> <url>"

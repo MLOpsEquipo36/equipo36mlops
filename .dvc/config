@@ -1,5 +1,0 @@
-[core]
-    remote = s3remote
-['remote "s3remote"']
-    url = s3://mlops-team36-bucket/equipo36mlops
-    region = us-east-2
