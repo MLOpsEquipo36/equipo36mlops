@@ -54,6 +54,7 @@ dvc push
 - 📚 **Guía completa**: [`docs/DVC_WORKFLOW.md`](docs/DVC_WORKFLOW.md)
 - 📋 **Guía rápida notebooks**: [`notebooks/README_DVC.md`](notebooks/README_DVC.md)
 - 🔧 **Referencia de comandos**: [`DVC_COMMANDS.md`](DVC_COMMANDS.md)
+- 📦 **Artefactos ML (.pkl, modelos)**: [`docs/DVC_ARTIFACTS.md`](docs/DVC_ARTIFACTS.md)
 
 ### Versiones de Datos
 
@@ -62,7 +63,8 @@ dvc push
 | `data-v1.0-raw` | Datos originales | `data/raw/student_entry_performance.csv` |
 | `data-v1.1-cleaned` | Datos después de EDA | `data/processed/student_performance.csv` |
 | `data-v1.2-features` | Features con PCA | `data/processed/student_performance_features.csv` |
-| `models-v1.0-baseline` | Modelos baseline | `data/mlflow/` |
+| `artifacts-v1.0` | Artefactos de preprocesamiento | `models/encoders/`, `models/preprocessors/` |
+| `models-v1.0-baseline` | Modelos baseline entrenados | `data/mlflow/` |
 
 ## Project Organization
 
