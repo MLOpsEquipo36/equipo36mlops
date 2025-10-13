@@ -6,6 +6,64 @@
 
 Este es el proyecto dedicado a la materia MLOps por parte del Equipo 36 en la Maestria en Inteligencia Artificial Aplicada del Tec de Monterrey. Desarrollado para el trimestre sep-dic 2025.
 
+## 🚀 Quick Start
+
+### Configuración Inicial
+
+```bash
+# 1. Clonar el repositorio
+git clone <repository-url>
+cd equipo36mlops
+
+# 2. Configurar credenciales AWS (para DVC)
+bash setup_aws_credentials.sh
+
+# 3. Descargar datos versionados
+dvc pull
+```
+
+### Ejecutar el Pipeline
+
+El proyecto consiste en 3 notebooks que deben ejecutarse en orden:
+
+1. **`1_EDA_and_Cleaning.ipynb`** - Exploración y limpieza de datos
+2. **`2_Data_Processing.ipynb`** - Feature engineering y PCA
+3. **`3_Model_Training_and_Registering.ipynb`** - Entrenamiento de modelos con MLflow
+
+Cada notebook incluye instrucciones para versionar los datos resultantes con DVC.
+
+## 📦 Versionado de Datos con DVC
+
+Este proyecto usa **DVC (Data Version Control)** para versionar datos y modelos, con almacenamiento remoto en **AWS S3**.
+
+### Comandos Rápidos
+
+```bash
+# Versionar un archivo nuevo
+bash add_to_dvc.sh <archivo> <tag> <descripción>
+
+# Descargar datos versionados
+dvc pull
+
+# Subir datos versionados
+dvc push
+```
+
+### Documentación
+
+- 📚 **Guía completa**: [`docs/DVC_WORKFLOW.md`](docs/DVC_WORKFLOW.md)
+- 📋 **Guía rápida notebooks**: [`notebooks/README_DVC.md`](notebooks/README_DVC.md)
+- 🔧 **Referencia de comandos**: [`DVC_COMMANDS.md`](DVC_COMMANDS.md)
+
+### Versiones de Datos
+
+| Tag | Descripción | Archivo |
+|-----|-------------|---------|
+| `data-v1.0-raw` | Datos originales | `data/raw/student_entry_performance.csv` |
+| `data-v1.1-cleaned` | Datos después de EDA | `data/processed/student_performance.csv` |
+| `data-v1.2-features` | Features con PCA | `data/processed/student_performance_features.csv` |
+| `models-v1.0-baseline` | Modelos baseline | `data/mlflow/` |
+
 ## Project Organization
 
 ```
