@@ -1,6 +1,3 @@
-# Data
-/data/
-
 # Mac OS-specific storage files
 .DS_Store
 
@@ -189,3 +186,18 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# DVC: Machine Learning artifacts (managed by DVC, not Git)
+# Encoders, scalers, transformers, and trained models
+/models/**/*.pkl
+/models/**/*.h5
+/models/**/*.joblib
+/models/**/*.bin
+*.pkl
+*.joblib
+
+# Machine Learning temporary files and logs
+catboost_info/
+mlruns/
+.ipynb_checkpoints/
+__pycache__/
