@@ -195,3 +195,9 @@ cython_debug/
 /models/**/*.bin
 *.pkl
 *.joblib
+
+# Machine Learning temporary files and logs
+catboost_info/
+mlruns/
+.ipynb_checkpoints/
+__pycache__/
