@@ -1,8 +1,8 @@
 #!/bin/bash
 # ==============================================================================
 # Script: add_to_dvc.sh
-# Descripción: Script helper para versionar archivos de datos con DVC
-# Uso: bash add_to_dvc.sh <archivo> <tag> <mensaje>
+# Descripción: Script helper para versionar archivos y directorios con DVC
+# Uso: bash add_to_dvc.sh <archivo o directorio> <tag> <mensaje>
 # ==============================================================================
 
 set -e  # Exit on error
@@ -41,10 +41,12 @@ echo ""
 if [ $# -lt 3 ]; then
     print_error "Uso incorrecto del script"
     echo ""
-    echo "Uso: bash add_to_dvc.sh <archivo> <tag> <mensaje>"
+    echo "Uso: bash add_to_dvc.sh <archivo o directorio> <tag> <mensaje>"
     echo ""
-    echo "Ejemplo:"
+    echo "Ejemplos:"
     echo "  bash add_to_dvc.sh data/processed/student_performance.csv data-v1.1-cleaned 'Dataset after EDA cleaning'"
+    echo "  bash add_to_dvc.sh data/mlflow models-v1.0-baseline 'Baseline models trained'"
+    echo "  bash add_to_dvc.sh models artifacts-v1.0 'Preprocessing artifacts'"
     echo ""
     exit 1
 fi
@@ -53,31 +55,35 @@ FILE_PATH=$1
 TAG_NAME=$2
 TAG_MESSAGE=$3
 
-# Validar que el archivo existe
-if [ ! -f "$FILE_PATH" ]; then
-    print_error "El archivo '$FILE_PATH' no existe"
+# Validar que el archivo o directorio existe
+if [ ! -e "$FILE_PATH" ]; then
+    print_error "El archivo o directorio '$FILE_PATH' no existe"
     exit 1
 fi
 
-print_info "Archivo a versionar: $FILE_PATH"
+if [ -d "$FILE_PATH" ]; then
+    print_info "Directorio a versionar: $FILE_PATH"
+else
+    print_info "Archivo a versionar: $FILE_PATH"
+fi
 print_info "Tag: $TAG_NAME"
 print_info "Mensaje: $TAG_MESSAGE"
 echo ""
 
-# Paso 1: Verificar si el archivo ya está trackeado por DVC
+# Paso 1: Verificar si el archivo/directorio ya está trackeado por DVC
 echo "----------------------------------------------------------------------"
-print_info "PASO 1: Verificando estado del archivo..."
+print_info "PASO 1: Verificando estado..."
 echo "----------------------------------------------------------------------"
 
 if [ -f "${FILE_PATH}.dvc" ]; then
-    print_warning "El archivo ya está versionado con DVC"
+    print_warning "Ya está versionado con DVC"
     print_info "Se actualizará la versión existente"
     dvc add "$FILE_PATH"
-    print_success "Archivo actualizado en DVC"
+    print_success "Actualizado en DVC"
 else
-    print_info "Agregando archivo nuevo a DVC..."
+    print_info "Agregando a DVC..."
     dvc add "$FILE_PATH"
-    print_success "Archivo agregado a DVC"
+    print_success "Agregado a DVC"
 fi
 echo ""
 
@@ -154,7 +160,11 @@ print_success "VERSIONADO COMPLETADO"
 echo "======================================================================"
 echo ""
 print_info "Resumen:"
-echo "  📁 Archivo:     $FILE_PATH"
+if [ -d "$FILE_PATH" ]; then
+    echo "  📁 Directorio:  $FILE_PATH"
+else
+    echo "  📁 Archivo:     $FILE_PATH"
+fi
 echo "  🏷️  Tag:         $TAG_NAME"
 echo "  📝 Descripción: $TAG_MESSAGE"
 echo ""

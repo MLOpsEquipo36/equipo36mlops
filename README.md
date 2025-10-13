@@ -55,6 +55,7 @@ dvc push
 - 📋 **Guía rápida notebooks**: [`notebooks/README_DVC.md`](notebooks/README_DVC.md)
 - 🔧 **Referencia de comandos**: [`DVC_COMMANDS.md`](DVC_COMMANDS.md)
 - 📦 **Artefactos ML (.pkl, modelos)**: [`docs/DVC_ARTIFACTS.md`](docs/DVC_ARTIFACTS.md)
+- 🗂️ **Archivos temporales (catboost_info, mlruns)**: [`docs/ML_TEMP_FILES.md`](docs/ML_TEMP_FILES.md)
 
 ### Versiones de Datos
 
