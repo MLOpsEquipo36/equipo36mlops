@@ -1,8 +1,5 @@
 [core]
     remote = s3remote
-['remote "gdrive"']
-    url = gdrive://12YrLZ1vaAEFAcIsyDfbJRjRYSywTfmC-
-    gdrive_acknowledge_abuse = true
 ['remote "s3remote"']
     url = s3://mlops-team36-bucket/equipo36mlops
     region = us-east-2
