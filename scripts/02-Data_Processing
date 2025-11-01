@@ -1,0 +1,298 @@
+"""
+Data Processing Script for Student Performance Model
+Converts cleaned data into features ready for modeling through encoding and PCA
+
+The script automatically detects whether to train new models or use existing ones:
+- If encoder and PCA models exist: loads and uses them (inference mode)
+- If models don't exist: creates and saves new ones (training mode)
+"""
+
+import os
+import argparse
+import pandas as pd
+import numpy as np
+import joblib
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.decomposition import PCA
+
+
+def onehot_encode_nominal_variables(df, nominal_variables, encoder=None, drop_original=True):
+    """
+    Apply OneHot encoding to nominal variables
+    
+    Parameters:
+    -----------
+    df : pd.DataFrame
+        Input dataframe
+    nominal_variables : list
+        List of column names to encode
+    encoder : OneHotEncoder, optional
+        Pre-fitted encoder for inference mode
+    drop_original : bool
+        Whether to drop original columns after encoding
+    
+    Returns:
+    --------
+    df_result : pd.DataFrame
+        DataFrame with encoded variables
+    onehot_encoder : OneHotEncoder
+        Fitted encoder object
+    """
+    if encoder is None:
+        # Training mode: fit new encoder
+        onehot_encoder = OneHotEncoder(sparse_output=False, drop='first')
+        onehot_encoded = onehot_encoder.fit_transform(df[nominal_variables])
+    else:
+        # Inference mode: use existing encoder
+        onehot_encoder = encoder
+        onehot_encoded = onehot_encoder.transform(df[nominal_variables])
+    
+    onehot_feature_names = onehot_encoder.get_feature_names_out(nominal_variables)
+    
+    onehot_df = pd.DataFrame(onehot_encoded, columns=onehot_feature_names, index=df.index)
+    
+    if drop_original:
+        df_result = df.drop(columns=nominal_variables)
+    else:
+        df_result = df.copy()
+    
+    df_result = pd.concat([df_result, onehot_df], axis=1)
+    
+    return df_result, onehot_encoder
+
+
+def process_data(input_path, output_path, encoder_path, pca_path):
+    """
+    Complete data processing pipeline with automatic mode detection
+    
+    Parameters:
+    -----------
+    input_path : str
+        Path to input CSV file (cleaned data)
+    output_path : str
+        Path to save processed features CSV
+    encoder_path : str
+        Path to save/load OneHot encoder
+    pca_path : str
+        Path to save/load PCA transformer
+    
+    Returns:
+    --------
+    df_pca : pd.DataFrame
+        Processed dataframe with PCA features
+    encoder : OneHotEncoder
+        Fitted encoder
+    pca : PCA
+        Fitted PCA transformer
+    """
+    
+    # Detect mode based on existence of model files
+    encoder_exists = os.path.exists(encoder_path)
+    pca_exists = os.path.exists(pca_path)
+    
+    if encoder_exists and pca_exists:
+        mode = 'inference'
+        print("=" * 70)
+        print("INFERENCE MODE DETECTED")
+        print("=" * 70)
+        print(f"Found existing encoder: {encoder_path}")
+        print(f"Found existing PCA: {pca_path}")
+        print("Using existing models to transform data")
+        print("=" * 70)
+    elif not encoder_exists and not pca_exists:
+        mode = 'train'
+        print("=" * 70)
+        print("TRAINING MODE DETECTED")
+        print("=" * 70)
+        print(f"No encoder found at: {encoder_path}")
+        print(f"No PCA found at: {pca_path}")
+        print("Will create and save new models")
+        print("=" * 70)
+    else:
+        # Partial models exist - this is an error state
+        raise FileNotFoundError(
+            f"Inconsistent state: encoder exists={encoder_exists}, pca exists={pca_exists}.\n"
+            f"Both models must exist or both must be missing.\n"
+            f"Encoder path: {encoder_path}\n"
+            f"PCA path: {pca_path}"
+        )
+    
+    # Load cleaned data
+    print(f"\nLoading dataset from: {input_path}")
+    df_after_eda = pd.read_csv(input_path)
+    print(f"Dataset loaded: {df_after_eda.shape[0]} rows, {df_after_eda.shape[1]} columns")
+    
+    # Drop specific nominal variables that are not useful
+    df_post_nominal = df_after_eda.drop(
+        ["Gender", "time", "Class_ten_education", "twelve_education"], 
+        axis=1
+    )
+    
+    # Define nominal variables to encode
+    nominal_variables = [
+        "Caste",
+        "coaching",
+        "medium",
+        "Father_occupation",
+        "Mother_occupation"   
+    ]
+    
+    # Define ordinal and target mappings
+    ordinal_mapping = {
+        "Class_X_Percentage": {
+            'EXCELLENT': 3,
+            'VG': 2,
+            'GOOD': 1,
+            'AVERAGE': 0
+        },
+        "Class_XII_Percentage": {
+            'EXCELLENT': 3,
+            'VG': 2,
+            'GOOD': 1,
+            'AVERAGE': 0
+        }
+    }
+    
+    target_mapping = {
+        "Performance": {
+            'EXCELLENT': 3,
+            'VG': 2,
+            'GOOD': 1,
+            'AVERAGE': 0
+        }
+    }
+    
+    # Apply ordinal encoding
+    df_post_nominal['Class_X_Percentage_encoded'] = df_post_nominal['Class_X_Percentage'].map(
+        ordinal_mapping['Class_X_Percentage']
+    )
+    df_post_nominal['Class_XII_Percentage_encoded'] = df_post_nominal['Class_XII_Percentage'].map(
+        ordinal_mapping['Class_XII_Percentage']
+    )
+    
+    # Apply target encoding
+    df_post_nominal['Performance_encoded'] = df_post_nominal['Performance'].map(
+        target_mapping['Performance']
+    )
+    
+    # Handle OneHot encoding based on detected mode
+    if mode == 'train':
+        # Fit new encoder
+        df_encoded, encoder = onehot_encode_nominal_variables(
+            df_post_nominal, 
+            nominal_variables, 
+            encoder=None,
+            drop_original=True
+        )
+        
+        # Save encoder
+        os.makedirs(os.path.dirname(encoder_path), exist_ok=True)
+        joblib.dump(encoder, encoder_path)
+        print(f"\nNew encoder fitted and saved to: {encoder_path}")
+        
+    else:  # mode == 'inference'
+        # Load existing encoder
+        encoder = joblib.load(encoder_path)
+        print(f"\nEncoder loaded from: {encoder_path}")
+        
+        # Apply encoding with existing encoder
+        df_encoded, _ = onehot_encode_nominal_variables(
+            df_post_nominal, 
+            nominal_variables, 
+            encoder=encoder,
+            drop_original=True
+        )
+    
+    # Drop original columns that have been encoded
+    df_encoded_final = df_encoded.drop(
+        ["Performance", "Class_X_Percentage", "Class_XII_Percentage"], 
+        axis=1
+    )
+    
+    # Handle PCA based on detected mode
+    if mode == 'train':
+        # Fit new PCA
+        pca = PCA(n_components=0.95)
+        X_pca = pca.fit_transform(df_encoded_final.drop(columns=['Performance_encoded']))
+        
+        # Save PCA transformer
+        os.makedirs(os.path.dirname(pca_path), exist_ok=True)
+        joblib.dump(pca, pca_path)
+        print(f"New PCA fitted and saved to: {pca_path}")
+        
+    else:  # mode == 'inference'
+        # Load existing PCA
+        pca = joblib.load(pca_path)
+        print(f"PCA loaded from: {pca_path}")
+        
+        # Transform with existing PCA
+        X_pca = pca.transform(df_encoded_final.drop(columns=['Performance_encoded']))
+    
+    # Create final DataFrame with PCA components and target
+    pca_columns = [f'PC{i+1}' for i in range(X_pca.shape[1])]
+    df_pca = pd.DataFrame(X_pca, columns=pca_columns, index=df_encoded.index)
+    df_pca['Performance'] = df_encoded_final['Performance_encoded'].values
+    
+    # Save processed features
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    df_pca.to_csv(output_path, index=False)
+    
+    # Print summary
+    print("\n" + "=" * 70)
+    print("DATA PROCESSING COMPLETED")
+    print("=" * 70)
+    print(f"Output saved to: {output_path}")
+    print(f"Features: {df_pca.shape[1]-1} PCA components + 1 target")
+    print(f"Mode used: {mode.upper()}")
+    print("=" * 70)
+    
+    return df_pca, encoder, pca
+
+
+def main():
+    """
+    Main execution function with command-line argument parsing
+    """
+    parser = argparse.ArgumentParser(
+        description='Process student performance data with automatic mode detection'
+    )
+    parser.add_argument(
+        '--input',
+        type=str,
+        default='../data/processed/student_performance.csv',
+        help='Path to input CSV file'
+    )
+    parser.add_argument(
+        '--output',
+        type=str,
+        default='../data/processed/student_performance_features.csv',
+        help='Path to output CSV file'
+    )
+    parser.add_argument(
+        '--encoder',
+        type=str,
+        default='../models/encoders/onehot_encoder.pkl',
+        help='Path to encoder file'
+    )
+    parser.add_argument(
+        '--pca',
+        type=str,
+        default='../models/preprocessors/pca_model.pkl',
+        help='Path to PCA file'
+    )
+    
+    args = parser.parse_args()
+    
+    # Process data with automatic mode detection
+    df_pca, encoder, pca = process_data(
+        input_path=args.input,
+        output_path=args.output,
+        encoder_path=args.encoder,
+        pca_path=args.pca
+    )
+    
+    print("\n✅ Script completed successfully!")
+
+
+if __name__ == "__main__":
+    main()
