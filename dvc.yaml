@@ -1,0 +1,25 @@
+stages:
+  ingest:
+    cmd: echo "Data ingestion completed - raw data already available"
+    deps:
+      - config/training.yaml
+    outs:
+      - data/raw/student_entry_performance.csv
+
+  preprocess:
+    cmd: python src/data/clean_data.py
+    deps:
+      - src/data/clean_data.py
+      - config/training.yaml
+      - data/raw/student_entry_performance.csv
+    outs:
+      - data/processed/student_performance.csv
+
+  feature_engineering:
+    cmd: python src/features/build_features.py
+    deps:
+      - src/features/build_features.py
+      - config/training.yaml
+      - data/processed/student_performance.csv
+    outs:
+      - data/processed/student_performance_features.csv
