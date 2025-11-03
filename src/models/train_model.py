@@ -10,12 +10,12 @@ import os
 from pathlib import Path
 from typing import Dict, Optional, Tuple
 
+from catboost import CatBoostRegressor
 import lightgbm as lgb
 import mlflow
 import mlflow.sklearn
 import numpy as np
 import pandas as pd
-from catboost import CatBoostRegressor
 from sklearn.metrics import cohen_kappa_score, root_mean_squared_error
 from sklearn.model_selection import train_test_split
 import xgboost as xgb
@@ -91,9 +91,7 @@ class ModelTrainer:
         self.logger.info(f"Loading features from: {self.input_path}")
         self.df = pd.read_csv(self.input_path)
 
-        self.logger.info(
-            f"Dataset loaded: {self.df.shape[0]} rows, {self.df.shape[1]} columns"
-        )
+        self.logger.info(f"Dataset loaded: {self.df.shape[0]} rows, {self.df.shape[1]} columns")
 
         if target_column not in self.df.columns:
             raise ValueError(
@@ -215,9 +213,7 @@ class ModelTrainer:
             self.logger.info(f"Metrics - RMSE: {rmse:.4f}, QWK: {qwk:.4f}")
 
             # Log model
-            mlflow.sklearn.log_model(
-                model, artifact_path="model", input_example=self.X_test.iloc[:5]
-            )
+            mlflow.sklearn.log_model(model, name="model", input_example=self.X_test.iloc[:5])
 
             self.logger.info(
                 f"Model '{model_name}' logged to MLflow under experiment '{self.experiment_name}'"
@@ -243,6 +239,7 @@ class ModelTrainer:
             Tuple of (RMSE, QWK) metrics
         """
         if params is None:
+            self.logger.info("No hyperparameters provided for LightGBM. Using default values.")
             params = {
                 "objective": "regression",
                 "metric": "rmse",
@@ -274,6 +271,7 @@ class ModelTrainer:
             Tuple of (RMSE, QWK) metrics
         """
         if params is None:
+            self.logger.info("No hyperparameters provided for XGBoost. Using default values.")
             params = {
                 "objective": "reg:squarederror",
                 "n_estimators": 200,
@@ -299,22 +297,21 @@ class ModelTrainer:
             Tuple of (RMSE, QWK) metrics
         """
         if params is None:
+            self.logger.info("No hyperparameters provided for CatBoost. Using default values.")
             params = {
                 "iterations": 300,
                 "learning_rate": 0.05,
                 "depth": 6,
                 "loss_function": "RMSE",
                 "random_seed": 42,
-                "verbose": 0,
-                "od_type": "Iter",
-                "od_wait": 20,
-                "train_dir": None,
             }
 
         model = CatBoostRegressor(**params)
         return self.evaluate_and_log_model("CatBoost", model, params)
 
-    def train_all_models(self) -> Dict[str, Dict[str, float]]:
+    def train_all_models(
+        self, hyperparameters: Optional[Dict[str, Dict[str, str | float]]] = None
+    ) -> Dict[str, Dict[str, float]]:
         """
         Train all available models.
 
@@ -326,13 +323,13 @@ class ModelTrainer:
         self.logger.info("=" * 70)
 
         # Train LightGBM
-        self.train_lightgbm()
+        self.train_lightgbm(params=hyperparameters.get("lightgbm") if hyperparameters else None)
 
         # Train XGBoost
-        self.train_xgboost()
+        self.train_xgboost(params=hyperparameters.get("xgboost") if hyperparameters else None)
 
         # Train CatBoost
-        self.train_catboost()
+        self.train_catboost(params=hyperparameters.get("catboost") if hyperparameters else None)
 
         self.logger.info("=" * 70)
         self.logger.info("All models trained successfully")
@@ -373,11 +370,63 @@ class ModelTrainer:
                 best_value = value
                 best_model = model_name
 
-        self.logger.info(
-            f"Best model ({metric}): {best_model} with {metric}={best_value:.4f}"
-        )
+        self.logger.info(f"Best model ({metric}): {best_model} with {metric}={best_value:.4f}")
 
         return best_model
+
+    def register_best_model(self, best_model_name: str):
+        """
+        Registra el mejor modelo entrenado en el MLflow Model Registry.
+
+        Args:
+            best_model_name: Nombre del mejor modelo (ej. 'LightGBM', 'XGBoost', 'CatBoost')
+        """
+        from mlflow.tracking import MlflowClient
+
+        client = MlflowClient(tracking_uri=f"file:{self.mlflow_dir}")
+
+        # Obtener el experimento actual
+        experiment = mlflow.get_experiment_by_name(self.experiment_name)
+        if not experiment:
+            raise ValueError(f"El experimento '{self.experiment_name}' no existe en MLflow.")
+
+        # Buscar el último run del modelo con ese nombre
+        runs = client.search_runs(
+            experiment_ids=[experiment.experiment_id],
+            filter_string=f"tags.mlflow.runName = '{best_model_name}'",
+            order_by=["start_time DESC"],
+            max_results=1,
+        )
+
+        if not runs:
+            raise ValueError(f"No se encontró ningún run para el modelo '{best_model_name}'.")
+
+        best_run = runs[0]
+        run_id = best_run.info.run_id
+        model_uri = f"runs:/{run_id}/model"
+
+        # Nombre en el registry (puede ser igual al modelo)
+        registered_model_name = f"{self.experiment_name.replace(' ', '_')}_{best_model_name}"
+
+        self.logger.info(f"📦 Registrando modelo '{best_model_name}' en MLflow Registry...")
+
+        # Registrar el modelo
+        result = mlflow.register_model(model_uri=model_uri, name=registered_model_name)
+
+        self.logger.info(
+            f"✅ Modelo '{best_model_name}' registrado en MLflow Registry como '{registered_model_name}' "
+            f"(versión: {result.version})"
+        )
+
+        # Etiquetar versión como candidata para producción
+        client.set_model_version_tag(
+            name=registered_model_name,
+            version=result.version,
+            key="stage",
+            value="candidate-for-production",
+        )
+
+        return result
 
     def run_pipeline(
         self,
@@ -385,6 +434,8 @@ class ModelTrainer:
         test_size: float = 0.2,
         random_state: int = 13,
         train_all: bool = True,
+        model: Optional[str] = None,
+        hyperparameters: Optional[Dict[str, Dict[str, float]]] = None,
     ) -> Dict[str, Dict[str, float]]:
         """
         Execute the complete model training pipeline.
@@ -414,9 +465,24 @@ class ModelTrainer:
 
         # Train models
         if train_all:
-            metrics = self.train_all_models()
+            metrics = self.train_all_models(hyperparameters=hyperparameters)
         else:
-            metrics = {}
+            if model == "lightgbm":
+                self.train_lightgbm(
+                    params=hyperparameters.get("lightgbm") if hyperparameters else None
+                )
+            elif model == "xgboost":
+                self.train_xgboost(
+                    params=hyperparameters.get("xgboost") if hyperparameters else None
+                )
+            elif model == "catboost":
+                self.train_catboost(
+                    params=hyperparameters.get("catboost") if hyperparameters else None
+                )
+            else:
+                self.logger.error(f"Modelo NO soportado: {model}")
+                raise ValueError(f"Modelo NO soportado: {model}")
+            metrics = self.model_metrics
 
         self.logger.info("=" * 70)
         self.logger.info("Model training pipeline completed")
@@ -486,23 +552,16 @@ def main():
         target_column=args.target,
         test_size=args.test_size,
         random_state=args.random_state,
+        hyperparameters=None,  # Could be extended to load hyperparameters from a config file
+        model=None if args.model == "all" else args.model,
         train_all=(args.model == "all"),
     )
 
-    if args.model == "lightgbm":
-        trainer.train_lightgbm()
-    elif args.model == "xgboost":
-        trainer.train_xgboost()
-    elif args.model == "catboost":
-        trainer.train_catboost()
-    elif args.model == "all":
-        trainer.train_all_models()
-
     best_model = trainer.get_best_model()
     print(f"\n✅ Model training completed! Best model: {best_model}")
-    print(f"📂 MLflow experiments saved to: {args.mlflow_dir}")
+    print(f"📂 MLflow experiments saved to: {trainer.mlflow_dir}")
+    print(f"🌐 To view MLflow UI, run: mlflow ui --backend-store-uri file:{trainer.mlflow_dir}")
 
 
 if __name__ == "__main__":
     main()
-
