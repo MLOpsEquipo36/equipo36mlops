@@ -213,7 +213,7 @@ class ModelTrainer:
             self.logger.info(f"Metrics - RMSE: {rmse:.4f}, QWK: {qwk:.4f}")
 
             # Log model
-            mlflow.sklearn.log_model(model, name="model", input_example=self.X_test.iloc[:5])
+            mlflow.sklearn.log_model(model, input_example=self.X_test.iloc[:5], artifact_path=model_name, registered_model_name=model_name)
 
             self.logger.info(
                 f"Model '{model_name}' logged to MLflow under experiment '{self.experiment_name}'"
