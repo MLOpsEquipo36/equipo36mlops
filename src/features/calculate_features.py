@@ -48,6 +48,15 @@ class FeatureInferencePipelineAdjusted:
         self.encoder = self._load_encoder()
         self.pca = self._load_pca()
 
+        # Get the actual feature names used during training from the encoder
+        if hasattr(self.encoder, 'feature_names_in_'):
+            # Use the feature names that were actually used during training
+            self.nominal_variables = list(self.encoder.feature_names_in_)
+            self.logger.info(f"Using encoder's feature_names_in_: {self.nominal_variables}")
+        else:
+            # Fallback: use provided nominal_variables
+            self.logger.warning("Encoder doesn't have feature_names_in_, using provided nominal_variables")
+
         # Expected onehot feature names (determined from the encoder and nominal_variables)
         # We compute here so we can check/reorder at transform time.
         self.expected_onehot_names = list(self.encoder.get_feature_names_out(self.nominal_variables))
@@ -200,7 +209,7 @@ class FeatureInferencePipelineAdjusted:
         X_pca = self.pca.transform(X)
 
         # Build DataFrame of PCs
-        pc_cols = [f"PC{i+1}" for i in range(X_pca.shape[1])]
+        pc_cols = [f"PC{i + 1}" for i in range(X_pca.shape[1])]
         df_pca = pd.DataFrame(X_pca, columns=pc_cols, index=df.index)
 
         # If original input had target, keep it appended (useful for debugging)
@@ -266,7 +275,6 @@ class FeatureInferencePipelineAdjusted:
 
         self.logger.info("Inference transformation completed")
         return df
-
 
 
 # ----------------- CLI -----------------------------------------------------
