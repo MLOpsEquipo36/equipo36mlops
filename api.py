@@ -179,7 +179,7 @@ class ModelPredictor:
                 if not registered_models:
                     raise ValueError("No registered models found in MLflow")
                 
-                # Get the first registered model (you can modify this logic)
+                # Get the first registered model
                 model_name = registered_models[0].name
                 latest_version = client.get_latest_versions(model_name, stages=["None"])[0]
                 
