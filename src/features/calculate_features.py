@@ -181,27 +181,31 @@ class FeatureInferencePipelineAdjusted:
             df = df.drop(columns=[self.target_variable])
 
         # Build X from columns that PCA expects: PCA was trained on 'n_features_in_' features;
-        # assume those are the onehot columns list we constructed.
-        # We'll form X by selecting expected_onehot_names in that order.
+        # This includes both onehot features AND ordinal encoded features
         if hasattr(self.pca, "n_features_in_"):
             n_expected = int(self.pca.n_features_in_)
         else:
             n_expected = len(self.expected_onehot_names)  # fallback
 
+        # Collect all features for PCA: onehot + ordinal encoded
+        ordinal_encoded_cols = [f"{col}_encoded" for col in self.ordinal_variables]
+        all_pca_features = self.expected_onehot_names + ordinal_encoded_cols
+
         # Ensure the DataFrame has the expected columns (pad with zeros if necessary)
-        missing_for_pca = [c for c in self.expected_onehot_names if c not in df.columns]
+        missing_for_pca = [c for c in all_pca_features if c not in df.columns]
         if missing_for_pca:
             self.logger.warning(f"Missing columns for PCA input: {missing_for_pca}. Filling with zeros.")
             for c in missing_for_pca:
                 df[c] = 0.0
 
-        X = df[self.expected_onehot_names].values  # ensures order
+        # Select features in the correct order: onehot first, then ordinal encoded
+        X = df[all_pca_features].values  # ensures order
 
         # Sanity check shape
         if X.shape[1] != n_expected:
             raise RuntimeError(
                 f"Shape mismatch for PCA: PCA expects {n_expected} features but input has {X.shape[1]}.\n"
-                f"Expected feature names (len={len(self.expected_onehot_names)}): {self.expected_onehot_names}"
+                f"Expected feature names (len={len(all_pca_features)}): {all_pca_features}"
             )
 
         # Transform with trained PCA
@@ -288,15 +292,22 @@ def main():
     parser.add_argument("--pca", type=str, default="models/preprocessors/pca_model.pkl")
     args = parser.parse_args()
 
-    # According to training logs, these were the selected nominal features
-    nominal_vars = [
-        "Caste",
-        "coaching",
-        "Class_ten_education",
-        "medium",
-        "Father_occupation",
-        "Mother_occupation",
-    ]
+    # Load encoder first to get the actual nominal variables it was trained on
+    encoder_temp = joblib.load(args.encoder)
+    if hasattr(encoder_temp, 'feature_names_in_'):
+        # Use the actual variables the encoder was trained on
+        nominal_vars = list(encoder_temp.feature_names_in_)
+        print(f"Using encoder's feature_names_in_: {nominal_vars}")
+    else:
+        # Fallback: According to training logs, these were the selected nominal features
+        nominal_vars = [
+            "Caste",
+            "coaching",
+            "medium",
+            "Father_occupation",
+            "Mother_occupation",
+        ]
+        print(f"Encoder doesn't have feature_names_in_, using fallback: {nominal_vars}")
 
     # Ordinal vars (kept for parity; training did not include them into PCA)
     ordinal_vars = ["Class_X_Percentage", "Class_XII_Percentage"]
