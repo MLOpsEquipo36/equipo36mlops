@@ -4,7 +4,8 @@ import os
 
 # =========== Integracion ==============
 
-def test_run_pipeline(): 
+def test_run_pipeline(): # Test para cubrir el main() completo de clean_data.py --> El df final posee todos los requisitos de limpieza
+    # DataFrame
     df = pd.DataFrame({
         "Performance": ["Excellent", "Excellent", "Excellent"],
         "Gender": ["male", " MALE ", "male"],
@@ -25,25 +26,13 @@ def test_run_pipeline():
 
     cleaner.load_data = lambda: df.copy()
     cleaner.df = df.copy()
-
     cleaned_df = cleaner.run_pipeline()
 
-    # valid DataFrame 
     assert isinstance(cleaned_df, pd.DataFrame)
-
-    # performance == true
     assert "Performance" in cleaned_df.columns
-
-    # No spaces
     assert all(not x.startswith(" ") and not x.endswith(" ") for x in cleaned_df["Gender"].astype(str))
-
-    # mayus
     assert cleaned_df["Gender"].str.isupper().all()
-
-    # mixed_type_col == true?
     assert "mixed_type_col" not in cleaned_df.columns
-
-    # no nulls
     assert len(cleaned_df) > 0
 
 # =========== Unitarios ==============
@@ -89,6 +78,37 @@ def test_save_cleaned_data(tmp_path): # funcion save_cleaned_data 260-273
     assert result_path == output_file
     df_loaded = pd.read_csv(output_file)
     assert len(df_loaded) == 2
+
+def test_handle_target_nulls(): # funcion handle_target_nulls 145
+    df = pd.DataFrame({
+        "Performance": ["Excellent", None, "Good"],
+        "Gender": ["Male", "Female", "Male"]
+    })
+
+    cleaner = DataCleaner("dummy.csv", "dummy_out.csv")
+    cleaner.df = df.copy()
+
+    cleaned = cleaner.handle_target_nulls("Performance")
+
+    # Performance = None
+    assert len(cleaned) == 2
+    assert cleaned["Performance"].isna().sum() == 0
+
+def test_fill_ordinal_nulls(): # funcion fill_ordinal_nulls_with_mode 198-199
+    df = pd.DataFrame({
+        "Performance": ["Excellent", None, "Good"]
+    })
+
+    cleaner = DataCleaner("dummy.csv", "dummy_out.csv")
+    cleaner.df = df.copy()
+
+    cleaned = cleaner.fill_ordinal_nulls_with_mode(
+        columns=["Performance"],
+        fill_value="EXCELLENT"
+    )
+
+    assert cleaned["Performance"].isna().sum() == 0
+    assert cleaned["Performance"].iloc[1] == "EXCELLENT"
 
 def test_normalize_case():
     df = pd.DataFrame({
@@ -159,34 +179,3 @@ def test_rename_columns():
 
     assert "Class_X_Percentage" in cleaned.columns
     assert "Class_ X_Percentage" not in cleaned.columns
-
-def test_handle_target_nulls(): # funcion handle_target_nulls 145
-    df = pd.DataFrame({
-        "Performance": ["Excellent", None, "Good"],
-        "Gender": ["Male", "Female", "Male"]
-    })
-
-    cleaner = DataCleaner("dummy.csv", "dummy_out.csv")
-    cleaner.df = df.copy()
-
-    cleaned = cleaner.handle_target_nulls("Performance")
-
-    # Performance = None
-    assert len(cleaned) == 2
-    assert cleaned["Performance"].isna().sum() == 0
-
-def test_fill_ordinal_nulls(): # funcion fill_ordinal_nulls_with_mode 198-199
-    df = pd.DataFrame({
-        "Performance": ["Excellent", None, "Good"]
-    })
-
-    cleaner = DataCleaner("dummy.csv", "dummy_out.csv")
-    cleaner.df = df.copy()
-
-    cleaned = cleaner.fill_ordinal_nulls_with_mode(
-        columns=["Performance"],
-        fill_value="EXCELLENT"
-    )
-
-    assert cleaned["Performance"].isna().sum() == 0
-    assert cleaned["Performance"].iloc[1] == "EXCELLENT"

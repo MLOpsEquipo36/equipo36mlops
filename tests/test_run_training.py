@@ -1,26 +1,23 @@
 import pytest
-import subprocess
-from unittest.mock import MagicMock, patch
-from pathlib import Path
 import sys
+import yaml
+import subprocess
+from pathlib import Path
+import logging
 import src.pipeline.run_training as rt
+from unittest.mock import MagicMock, patch
+from src.pipeline.run_training import load_config, setup_logging
 
 # =========== Integracion ==============
 
-def test_run_training_main_unit(tmp_path, monkeypatch):
-    """
-    Test unitario para el main() de run_training,
-    mockeando load_config, setup_logging y el pipeline completo.
-    """
+def test_run_training_main_unit(tmp_path, monkeypatch): # Test para cubrir el main() completo de run_training.py --> Se finalizó todo el ciclo del pipeline
 
-    # ===============================
-    # 1. Crear archivos ficticios
-    # ===============================
+    # Archivos
     raw = tmp_path / "raw.csv"
     interim = tmp_path / "interim.csv"
     processed = tmp_path / "processed.csv"
 
-    # Dataset mínimo válido
+    # Dataset
     raw.write_text(
         "Performance,Gender,Score\n"
         "Excellent,Male,90\n"
@@ -28,9 +25,7 @@ def test_run_training_main_unit(tmp_path, monkeypatch):
         "Poor,Male,70\n"
     )
 
-    # ===============================
-    # 2. Mock: configuración completa
-    # ===============================
+    # Mock de la config
     mock_config = {
         "paths": {
             "raw_data": str(raw),
@@ -56,19 +51,13 @@ def test_run_training_main_unit(tmp_path, monkeypatch):
         }
     }
 
-    # ===============================
-    # 3. Mock de load_config()
-    # ===============================
+    # Mock de load_config()
     monkeypatch.setattr(rt, "load_config", lambda *args, **kwargs: mock_config)
 
-    # ===============================
-    # 4. Mock de setup_logging()
-    # ===============================
+    # Mock de setup_logging()
     monkeypatch.setattr(rt, "setup_logging", lambda *args, **kwargs: None)
 
-    # ===============================
-    # 5. Mockear clases usadas en pipeline
-    # ===============================
+    # Mock de clases
     class DummyPipeline:
         def __init__(self, steps):
             self.steps = steps
@@ -98,9 +87,7 @@ def test_run_training_main_unit(tmp_path, monkeypatch):
 
     monkeypatch.setattr(rt, "FeatureBuildingStep", DummyFeature)
 
-    # ===============================
-    # 6. Mock de ModelTrainer
-    # ===============================
+    # Mock de ModelTrainer
     class DummyTrainer:
         def __init__(self, *args, **kwargs):
             self.mlflow_dir = tmp_path / "mlruns"
@@ -122,20 +109,12 @@ def test_run_training_main_unit(tmp_path, monkeypatch):
 
     monkeypatch.setattr(rt, "ModelTrainer", DummyTrainer)
 
-    # ===============================
-    # 7. Ejecutar main()
-    # ===============================
     rt.main()
-
-    # Si llegamos aquí sin excepciones, pasó el test
     assert True
 
 # =========== Unitarios ==============
 
 def test_register_best_model_block_success(): # No coverage
-    import src.pipeline.run_training as rt
-    from unittest.mock import MagicMock
-
     # Mock logger
     fake_logger = MagicMock()
 
@@ -159,7 +138,6 @@ def test_register_best_model_block_success(): # No coverage
         "logger": fake_logger,
     }
 
-    # Ejecutar EXACTO el bloque
     exec(
         "registration_result = trainer.register_best_model(best_model_name=best_model)\n"
         "logger.info(f\"📦 Modelo registrado: {registration_result.name()} (versión: {registration_result.version})\")",
@@ -169,9 +147,6 @@ def test_register_best_model_block_success(): # No coverage
     fake_logger.info.assert_called()
 
 def test_register_best_model_block_failure(): # No coverage
-    import src.pipeline.run_training as rt
-    from unittest.mock import MagicMock
-
     fake_logger = MagicMock()
 
     class FakeTrainer:
@@ -196,9 +171,6 @@ def test_register_best_model_block_failure(): # No coverage
     fake_logger.exception.assert_called()
 
 def test_load_config_unit(tmp_path):
-    from src.pipeline.run_training import load_config
-    import yaml
-    
     # Crear YAML temporal
     yaml_file = tmp_path / "cfg.yaml"
     content = {"pipeline": {"cleaning": True}}
@@ -210,9 +182,6 @@ def test_load_config_unit(tmp_path):
     assert cfg["pipeline"]["cleaning"] is True
 
 def test_setup_logging_unit(monkeypatch):
-    from src.pipeline.run_training import setup_logging
-    import logging
-
     calls = []
 
     def fake_basicConfig(**kwargs):
@@ -226,8 +195,6 @@ def test_setup_logging_unit(monkeypatch):
     assert calls[0]["level"] == logging.WARNING
 
 def test_pipeline_fit_success(monkeypatch):
-    import src.pipeline.run_training as rt
-
     fake_logger = MagicMock()
     monkeypatch.setattr(rt.logging, "getLogger", lambda name=None: fake_logger)
 
@@ -237,7 +204,7 @@ def test_pipeline_fit_success(monkeypatch):
 
     pipeline = FakePipeline()
 
-    # Simular sección 87–89
+    # 87–89
     try:
         pipeline.fit(None)
         fake_logger.info("✔ Limpieza y feature engineering completados.")

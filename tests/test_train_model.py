@@ -7,55 +7,47 @@ import src.models.train_model as tm
 
 # =========== Integracion ==============
 
-def test_train_model_main_unit(tmp_path, monkeypatch):
-
-    # 1) Crear CSV con CLASES BALANCEADAS (mínimo 2 muestras por clase)
+def test_train_model_main_unit(tmp_path, monkeypatch):  # Test para cubrir el main() completo de run_training.py --> Se creó el mlflow exitosamente
+    # 1) CSV
     input_file = tmp_path / "features.csv"
 
     df = pd.DataFrame({
         "feature1":  [1,1,2,2,3,3],
         "feature2":  [4,4,3,3,2,2],
-        "Performance": [1,1,2,2,3,3],   # cada clase tiene 2 muestras
+        "Performance": [1,1,2,2,3,3],
     })
 
     df.to_csv(input_file, index=False)
 
     mlflow_dir = tmp_path / "mlflow"
 
-    # 2) Simular argumentos CLI
     monkeypatch.setattr(sys, "argv", [
         "train_model.py",
         "--input", str(input_file),
         "--mlflow-dir", str(mlflow_dir),
         "--experiment-name", "test-exp",
         "--target", "Performance",
-        "--test-size", "0.5",          # <-- FIX: asegura >= 3 muestras para test
+        "--test-size", "0.5",
         "--random-state", "13",
         "--model", "lightgbm"
     ])
 
-    # 3) Ejecutar main()
     tm.main()
 
-    # 4) Validaciones
     assert mlflow_dir.exists()
     assert any(mlflow_dir.rglob("*"))
 
 # =========== Unitarios ==============
 
 def test_train_all_models_unit():
-    # === Crear instancia ===
     trainer = ModelTrainer(
         input_path="dummy.csv",
         mlflow_dir="dummy_mlflow",
         experiment_name="test_experiment"
     )
 
-    # Inicializar métricas
     trainer.model_metrics = {}
 
-    # === Mockear funciones internas simulando su comportamiento real ===
-    
     def fake_lightgbm(params=None):
         trainer.model_metrics["lightgbm"] = {"rmse": 0.5, "qwk": 0.7}
         return 0.5, 0.7
@@ -72,23 +64,16 @@ def test_train_all_models_unit():
     trainer.train_xgboost = MagicMock(side_effect=fake_xgboost)
     trainer.train_catboost = MagicMock(side_effect=fake_catboost)
 
-    # === Ejecutar función ===
     metrics = trainer.train_all_models(hyperparameters=None)
 
-    # === Verificaciones ===
     assert isinstance(metrics, dict)
-
-    # Las métricas deben existir
     assert "lightgbm" in trainer.model_metrics
     assert "xgboost" in trainer.model_metrics
     assert "catboost" in trainer.model_metrics
-
-    # Verificar contenido
     for model in trainer.model_metrics.values():
         assert "rmse" in model
         assert "qwk" in model
 
-    # Verificar llamados
     trainer.train_lightgbm.assert_called_once()
     trainer.train_xgboost.assert_called_once()
     trainer.train_catboost.assert_called_once()
@@ -101,14 +86,12 @@ def test_register_best_model_unit():
     )
 
     with patch("src.models.train_model.mlflow") as mock_mlflow, \
-         patch("mlflow.tracking.MlflowClient") as MockClient:   # ← SOLUCIÓN
+         patch("mlflow.tracking.MlflowClient") as MockClient:
 
-        # ==== Mock para get_experiment_by_name ====
         mock_experiment = MagicMock()
         mock_experiment.experiment_id = "123"
         mock_mlflow.get_experiment_by_name.return_value = mock_experiment
 
-        # ==== Mock de MlflowClient ====
         mock_client = MockClient.return_value
 
         mock_run = MagicMock()
