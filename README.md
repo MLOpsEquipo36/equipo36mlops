@@ -120,3 +120,40 @@ dvc push
 
 --------
 
+## API
+API REST para predecir el rendimiento estudiantil basado en características académicas y demográficas.
+
+Se ejecuta usando el script
+
+```bash
+bash
+python api.py
+```
+
+La API estará disponible en:
+
+http://localhost:8000/docs
+
+Para usar la interfaz interactiva de Swagger UI, se necesita acceder en un navegador con http://localhost:8000/docs 
+
+El modelo usado es el que MLflow tenga registrado como el mejor modelo en el momento en que la API sea activada.
+Por ejemplo:
+models:/mlflow-student-performance-experiment_CatBoost/version1
+
+El schema de entrada es a partir de un json como el siguiente:
+{
+    "Caste": "GENERAL",
+    "coaching": "WA",
+    "Class_ten_education": "SEBA",
+    "medium": "ENGLISH",
+    "Class_X_Percentage": "EXCELLENT",
+    "Class_XII_Percentage": "VG",
+    "Father_occupation": "ENGINEER",
+    "Mother_occupation": "SCHOOL_TEACHER"
+        }
+
+Mientras que para la salida es:
+{
+  "prediction": "EXCELLENT",
+  "prediction_numeric": 3
+}
